@@ -3,7 +3,108 @@
 > Bu dosya projenin `sudoku-spec.md` içindeki **Geliştirme Aşamaları**na göre
 > nerede olduğumuzu takip eder. Her önemli değişiklikte güncellenir.
 
-**Son güncelleme:** 2026-07-18
+**Son güncelleme:** 2026-07-20
+
+> Kontrol çubuğu düğme sırası soldan sağa: Geri Al · Yinele · Sil · Not · İpucu.
+> Kontrol çubuğu + rakam tuşları, tahtanın altındaki boşluğun yarısı kadar yukarı
+> çekildi (`game.tsx`, onLayout ölçümü + `translateY`).
+> Duraklatma ekranı düzeltildi: eski `opacity: 0.05` bug'ı (ekran görünmezdi)
+> giderildi; artık tam ekran opak katman — ⏸️ + "Oyun Duraklatıldı" + mod·süre +
+> Devam Et butonu.
+> Performans/akıcılık: (1) auto-save 600ms debounce (her dokunuş/tick'te diske
+> yazma kaldırıldı), (2) context callback'leri useCallback ile sabitlendi,
+> (3) `applyDigit` değişmeyen hücrelerin referansını koruyor, (4) hücreler ve
+> tahta/NumberPad `React.memo` — artık seçim/giriş sadece değişen hücreyi çiziyor.
+> Kırmızı (yanlış) sayı dururken aynı sayı tekrar girilince hücre boşalıyor ve
+> hata sayısı ARTMIYOR (`gameStore.applyDigit`).
+> Ayarlar ekranı yeniden tasarlandı: gruplu kartlar + ikon + açıklama + toggle/nav
+> satırları. 18 ayar `useSettings`'e eklendi. CANLI olanlar: Saat, Bölge Vurgusu,
+> Aynı Sayıları Vurgula, Otomatik Temizle, Kalan numara, Aydınlık modu(→tema).
+> PLACEHOLDER (kayıtlı ama etkisiz, sonra bağlanacak): Ses Efekti, Titreşim,
+> Bildirim, Hata limiti, Önce Sayı, Otomatik Tamamlama, Bulmaca Bilgileri,
+> Puanı Göster. Nav: İstatistikler(→/stats), Nasıl Oynanır/Geri Bildirim/Hakkında
+> (Alert), Çık(→ana ekran).
+> 2. tur: Puanı Göster / Aydınlık modu / Önce Sayı satırları kaldırıldı. Tema
+> artık Ses Efekti kartındaki "Tema" satırı (dokun → aydınlık/karanlık). GERÇEK
+> yapıldı: Hata limiti (kapalıyken 3 hatada kaybetme yok — `applyDigit`'e
+> mistakeLimit param), Titreşim (RN `Vibration`, yanlış girişte), Ses Efekti
+> (expo-audio + `assets/sounds/pop.wav`, her hamlede), Bildirim (expo-notifications,
+> günlük 20:00 hatırlatma; izin reddedilirse toggle geri alınır). Yeni paketler:
+> expo-audio ~56, expo-notifications ~56.
+> ⚠️ expo-notifications Expo Go Android'de import anında ÇÖKÜYOR (SDK 53'te push
+> kaldırıldı). Bu yüzden `useSettings`'te lazy `require` + try/catch ile yükleniyor
+> (`getNotifications`/`notificationsSupported`). Expo Go'da toggle açılınca uyarı
+> gösterilip geri kapanıyor; gerçek DEV BUILD'de çalışır. Ses/titreşim Expo Go'da OK.
+> 4. tur (ana ekran & navigasyon): Zorluk sayfası (`DifficultySheet`) artık ALTTAN
+> yukarı kayıyor + "17-22 ipucu" açıklamaları kaldırıldı. Ana ekran (`index.tsx`)
+> yatay pager oldu: sayfa 1 Ana sayfa, sayfa 2 İstatistikler; sola/sağa kaydırma +
+> altta yazısız 2 ikonlu sekme (⌂ ana sayfa, 👤 profil/istatistik), aktif olan
+> accent renkte. "Devam Et" butonu Yeni ile aynı boyut/renk, üstünde zorluk·süre.
+> İstatistik kartları `StatsView` bileşenine çıkarıldı (hem pager hem /stats route
+> kullanıyor). Ayarlarda Tema artık 3 ikon (☀️ aydınlık / 🌙 karanlık / 📱 sistem)
+> ile seçiliyor; seçili olan accent ile vurgulanıyor. Durum çubuğu (`_layout`)
+> artık uygulama temasını izliyor (`ThemedStatusBar`, cihaz şeması değil).
+> 5. tur: Alt sekmede aktif sayfa artık koyu bir "hap" (cardBackground + kenarlık,
+> `tabPill`) ile de vurgulanıyor (renk + dikdörtgen). Timer bug'ı düzeltildi:
+> TICK artık global değil, yalnızca oyun ekranı ODAKTAYKEN `useFocusEffect` ile
+> işliyor (context'e `tick` eklendi). Böylece ana ekrandayken/Devam Et butonunda
+> süre AKMIYOR; sadece oyun ekranında oynanırken ilerliyor.
+> 6. tur: Sayı butonları (`NumberPad`) ekran genişliğine göre dinamik boyutlanıyor —
+> kenardan SIDE=5, aralarında GAP=5 ile 9 buton neredeyse tam genişliğe yayılıyor
+> (buttonW = (width-2*SIDE-8*GAP)/9, yükseklik ×1.5, font ×0.52). `controls`'un yatay
+> padding'i kaldırılıp yalnızca ControlBar'a taşındı (`controlBarWrap`).
+> 7. tur: Dokunma/seçim "pulse" animasyonu (kenar kalınlaşıp sönen accent halka).
+> Sayı butonlarında hafif (`PadButton`, borderWidth 0→3, basınca), kutucuklarda
+> daha belirgin (`Cell`, borderWidth 0→5, seçilince). Aynı-sayı vurgusu ayarı
+> açıksa aynı rakamlı kutular da animasyona girer (isSameNum zaten ayarla gated,
+> kapalıyken sadece seçilen kutu oynar). Animated borderWidth (JS driver).
+> 8. tur: Kutu pulse rengi kalın çizgi rengi (`colors.thickLine`) oldu. Animasyon
+> artık her basışta (tekrar basış dahil, istisnasız) çalışıyor: tetikleme kutu-içi
+> `isSameNum` efektinden çıkarılıp board seviyesine taşındı — `handleSelect` her
+> basışta ilgili kutulara imperatif `pulse()` gönderiyor (Cell `forwardRef` +
+> `useImperativeHandle`; stable ref setter'lar + ref'lerden okuyan sabit handler,
+> memoization korunuyor). Aynı-sayı vurgusu açıksa aynı rakamlı kutular da her
+> basışta pulse'a girer. Kutuda rakam varsa rakam da pulse'la eşzamanlı büyüyüp
+> küçülüyor (digitScale 1→1.28→1, Animated.Text).
+> 9. tur: Animasyonlar NATIVE driver'a taşındı (giriş hızlandırıldı + ilk/ikinci
+> basış tutarlılığı). Sayı butonu: onPress önce çağrılıp pulse UI thread'de (240ms).
+> Kutu pulse: eskiden JS-driven animated borderWidth ilk basışta seçim render'ıyla
+> yarışıp kareleri düşürdüğü için hafif görünüyordu; artık SABİT kalın kenar (5px,
+> `cellPulse`) + opacity fade, native driver (420ms), idle=1 (görünmez). Böylece
+> ilk basış da ikincisi kadar kalın. Rakam ölçeği de native (transform).
+> 10. tur: İlk basıştaki "drop"/sıçrama giderildi. Sebep: her render'da
+> `anim.interpolate(...)` yeni düğüm yaratıyordu; ilk basışta seçim re-render'ı bu
+> düğümü değiştirince native animasyon kopup sıçrıyordu. interpolation düğümleri
+> artık `useMemo([anim])` ile bir kez oluşturuluyor (Cell + PadButton) → ilk ve
+> ikinci basış tıpatıp aynı, pürüzsüz.
+> 11. tur: Kalan "drop" giderildi. Sebep sıra: pulse seçim dispatch'inden ÖNCE
+> başlıyordu → ilk basışta "önce pulse, sonra vurgu oturur" iki aşamalı görünüyordu.
+> Artık `handleSelect` önce seçimi uyguluyor, `requestAnimationFrame` ile bir kare
+> sonra (vurgu commit olduktan sonra) pulse'ı çalıştırıyor → her basış lit kutuya
+> tekrar basış gibi, tıpatıp aynı.
+> 12. tur (eksikleri tamamlama): Geri Bildirim artık `mailto:` ile e-posta açıyor
+> (settings.tsx, FEEDBACK_EMAIL); mail uygulaması yoksa adresi Alert'te gösteriyor.
+> Nasıl Oynanır ayrı ekran (`app/how-to.tsx`, kurallar kartları), Hakkında ayrı
+> ekran (`app/about.tsx`, sürüm expo-constants'tan). Her ikisi Stack'e eklendi;
+> settings nav router.push ile bağlandı. NOT: Bildirim Android kanalı düzenlemesi
+> kullanıcı tarafından geri alındı, dokunulmadı. Paylaşım linki tıklanabilirliği
+> kullanıcı isteğiyle şimdilik atlandı. Build (Play Store/Android) sonraya bırakıldı.
+> 13. tur: Bildirim TAMAM (app.json plugin + Android `reminders` kanalı + channelId,
+> günlük 20:00). Paylaşım linki: `docs/index.html` yönlendirme sayfası (p&d okur,
+> sudoku:// deep link'e yönlendirir + "Oyunu Aç" butonu). `src/config.ts` →
+> `SHARE_BASE_URL` (boşken sudoku://, doluyken https link paylaşılır). game.tsx
+> handleShare koşullu. KALAN: kullanıcının docs/'u GitHub Pages'te barındırıp
+> SHARE_BASE_URL'yi ayarlaması (repo/remote henüz yok).
+> 3. tur: Otomatik Tamamlama GERÇEK — aktifken ve ≤5 boş kutu kaldığında sağ altta
+> onay pop-up'ı çıkar ("Son N kutu kaldı. Otomatik tamamlansın mı? Evet/Hayır").
+> Evet → tahta çözümden tamamlanıp oyun kazanılır (`gameStore.completeBoardState`,
+> tek history girişi → undo geri alır). Hayır → o oyun boyunca bir daha sorulmaz
+> (yeni oyunda sıfırlanır). Bulmaca Bilgileri GERÇEK — açıkken
+> info satırında zorluk yanında canlı "%doluluk" gösterilir; Hata limiti kapalıysa
+> "Hata: N" (/3 gizli). "Muhteşem Oyun": hatasız (errorCount 0) kazanılan oyun.
+> useStats'a diff başına `perfect` sayacı eklendi (eski kayıtlar EMPTY_DIFF ile
+> merge edilir), istatistik kartında "✨ Muhteşem Oyun" satırı, bitiş ekranında
+> hatasız kazanınca "Muhteşem Oyun! / Hatasız çözdün 🏆".
 
 ---
 
@@ -93,6 +194,39 @@ son kontrol, mağaza gönderim bilgilerini (`eas.json` → `submit`) doldur.
 ---
 
 ## Değişiklik Günlüğü
+
+### 2026-07-20
+- **Oyun ekranı üst düzeni marketteki uygulamalara yaklaştırıldı** (`app/game.tsx`):
+  - Üst çubukta sadece geri oku (`←`) kaldı; "Ana Ekran" yazısı silindi.
+  - Zorluk / süre / `Hata: 0/3` bilgisi ayrı bir satıra alınıp **tahtanın hemen
+    üstüne** yerleştirildi (satır genişliği `SudokuBoard` ile aynı formülle hizalı).
+  - Sağ üst köşeye **duraklat (❚❚)** ve **ayarlar (⚙)** ikon butonları eklendi
+    (yazısız). Duraklat mevcut duraklatma katmanını, ayarlar `/settings` ekranını açar.
+  - Alt kontroller **rakamların üstüne** taşındı (market düzeni): Not/Sil/Geri Al/
+    Yinele/İpucu/Paylaş üstte, 1-9 altta.
+- **Koyu mod görünürlük hatası düzeltildi** (`ControlBar.tsx`): tek renkli glif
+  ikonlarına (`⌫ ↩ ↪`) renk atanmamıştı, koyu zeminde siyaha yakın kalıp
+  görünmüyordu. Artık `colors.primaryText` (aktifken beyaz) kullanılıyor.
+- **Görsel doğrulama:** expo web + Playwright ile Uzman oyunu açık ve koyu temada
+  ekran görüntüsüyle onaylandı.
+- **İkinci tur düzeltmeler (aynı gün):**
+  - Paylaş, kontrol çubuğundan alınıp üst çubuğa (duraklatın soluna) yazısız ikon
+    olarak taşındı (`↗`). Üst çubuk ikonları tek renkli/uyumlu: ana ekran `⌂`,
+    paylaş `↗`, duraklat (iki ince çubuk), ayarlar `⚙`.
+  - Duraklat ikonu `❚❚` glifi yerine iki ince `View` çubuğuyla çizildi — çok geniş
+    görünme sorunu çözüldü.
+  - Kontrol çubuğu 5 butona indi (Not/Sil/Geri Al/Yinele/İpucu) ve butonlar
+    büyütüldü (ikon 22→27, min 50→60) — paylaşın boşalttığı yeri dolduruyor.
+  - **Not hatası düzeltildi** (`SudokuBoard.tsx` `PencilMarks`): eski `flexWrap`
+    düzeni `markSize = cellSize/3` kullanıyordu ama hücre içi genişlik kenarlık
+    kadar dardı; 3 işaret satıra sığmayıp taşıyor, notlar yanlış yere düşüyordu.
+    Artık 3 esnek (`flex:1`) satır × 3 slot ile her rakam sabit yerde
+    (1 sol üst … 9 sağ alt, telefon tuş takımı gibi).
+  - **Not modunda tıkanma düzeltildi** (`NumberPad.tsx`): tahtaya 9 kez konmuş
+    rakam butonu not modunda da pasifti; artık not modunda her rakam not olarak
+    eklenebiliyor (`disabled = done && !noteMode`).
+  - NumberPad'deki kalan-adet sayısının etrafındaki renkli dikdörtgen kaldırıldı;
+    sadece sayı görünüyor.
 
 ### 2026-07-18
 - **Tahta render hatası düzeltildi** (`SudokuBoard.tsx`). Belirti: silik/düzensiz

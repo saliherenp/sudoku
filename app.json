@@ -34,11 +34,24 @@
       "expo-font",
       [
         "expo-status-bar",
-        { "style": "auto" }
-      ]
+        {
+          "style": "auto"
+        }
+      ],
+      "expo-audio",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": false
+    },
+    "extra": {
+      "router": {},
+      "expo-status-bar": {
+        "style": "auto"
+      },
+      "eas": {
+        "projectId": "3dd9696d-8564-4311-a681-750c00b1c3ca"
+      }
     }
   }
 }

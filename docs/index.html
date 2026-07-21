@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sudoku — Bulmacayı Aç</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #12141A;
+      color: #F0F2FC;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      width: 100%;
+      max-width: 360px;
+      background: #1E2130;
+      border: 1px solid #2C3040;
+      border-radius: 24px;
+      padding: 32px 24px 28px;
+    }
+    .logo { font-size: 56px; line-height: 1; margin-bottom: 12px; }
+    h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+    p.sub { color: #7A809A; font-size: 15px; margin-top: 6px; }
+    .diff { color: #4F66E8; font-weight: 700; }
+    .btn {
+      display: block;
+      margin-top: 24px;
+      padding: 16px;
+      background: #4F66E8;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 700;
+      text-decoration: none;
+      border-radius: 16px;
+    }
+    .hint { color: #7A809A; font-size: 13px; margin-top: 16px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🧩</div>
+    <h1>Sudoku</h1>
+    <p class="sub" id="sub">Bir arkadaşın sana bir bulmaca gönderdi!</p>
+    <a class="btn" id="openBtn" href="#">Oyunu Aç</a>
+    <p class="hint">Buton çalışmazsa uygulamanın kurulu olduğundan emin ol, sonra tekrar dene.</p>
+  </div>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var p = params.get('p') || '';
+      var d = params.get('d') || 'medium';
+      var DIFF = { easy: 'Kolay', medium: 'Orta', hard: 'Zor', expert: 'Uzman' };
+
+      var deepLink = 'sudoku://play?p=' + encodeURIComponent(p) + '&d=' + encodeURIComponent(d);
+      var btn = document.getElementById('openBtn');
+      btn.setAttribute('href', deepLink);
+
+      if (p && p.length === 81) {
+        document.getElementById('sub').innerHTML =
+          'Bir arkadaşın <span class="diff">' + (DIFF[d] || 'Orta') + '</span> seviye bir bulmaca gönderdi!';
+        // Sayfa açılır açılmaz uygulamayı açmayı dene.
+        setTimeout(function () { location.href = deepLink; }, 400);
+      } else {
+        document.getElementById('sub').textContent = 'Bağlantı geçersiz görünüyor.';
+        btn.style.display = 'none';
+      }
+    })();
+  </script>
+</body>
+</html>

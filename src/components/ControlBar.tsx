@@ -8,7 +8,6 @@ type Props = {
   onUndo: () => void;
   onRedo: () => void;
   onHint: () => void;
-  onShare: () => void;
   canUndo: boolean;
   canRedo: boolean;
 };
@@ -21,16 +20,15 @@ type ControlItem = {
   disabled?: boolean;
 };
 
-export default function ControlBar({ noteMode, onToggleNote, onErase, onUndo, onRedo, onHint, onShare, canUndo, canRedo }: Props) {
+export default function ControlBar({ noteMode, onToggleNote, onErase, onUndo, onRedo, onHint, canUndo, canRedo }: Props) {
   const { colors } = useTheme();
 
   const items: ControlItem[] = [
-    { label: 'Not', icon: '✏️', onPress: onToggleNote, active: noteMode },
-    { label: 'Sil', icon: '⌫', onPress: onErase },
     { label: 'Geri Al', icon: '↩', onPress: onUndo, disabled: !canUndo },
     { label: 'Yinele', icon: '↪', onPress: onRedo, disabled: !canRedo },
+    { label: 'Sil', icon: '⌫', onPress: onErase },
+    { label: 'Not', icon: '✏️', onPress: onToggleNote, active: noteMode },
     { label: 'İpucu', icon: '💡', onPress: onHint },
-    { label: 'Paylaş', icon: '🔗', onPress: onShare },
   ];
 
   return (
@@ -52,7 +50,7 @@ export default function ControlBar({ noteMode, onToggleNote, onErase, onUndo, on
               <Text style={styles.activeBadgeText}>AÇIK</Text>
             </View>
           )}
-          <Text style={styles.icon}>{item.icon}</Text>
+          <Text style={[styles.icon, { color: item.active ? '#fff' : colors.primaryText }]}>{item.icon}</Text>
           <Text style={[
             styles.label,
             { color: item.active ? '#fff' : colors.secondaryText },
@@ -74,15 +72,15 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 50,
-    minHeight: 50,
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    minWidth: 60,
+    minHeight: 60,
+    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     position: 'relative',
   },
-  icon: { fontSize: 22 },
-  label: { fontSize: 11, fontWeight: '500', marginTop: 2 },
+  icon: { fontSize: 27 },
+  label: { fontSize: 12, fontWeight: '500', marginTop: 3 },
   activeBadge: {
     position: 'absolute',
     top: 2,

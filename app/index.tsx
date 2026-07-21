@@ -1,18 +1,51 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../src/theme';
 import DifficultySheet from '../src/components/DifficultySheet';
+import StatsView from '../src/components/StatsView';
 import { Difficulty } from '../src/engine/types';
 import { useGame } from '../src/store/useGameContext';
+
+const DIFF_LABELS: Record<Difficulty, string> = {
+  easy: 'Kolay', medium: 'Orta', hard: 'Zor', expert: 'Uzman',
+};
+
+function formatTime(s: number) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
 
 export default function HomeScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const { state, startGame } = useGame();
+
   const [showDifficulty, setShowDifficulty] = useState(false);
-  const hasActiveGame = state.puzzle !== null && state.status === 'playing' && state.cells.some(c => !c.isGiven && c.value !== 0);
+  const [page, setPage] = useState(0);
+  const [pagerH, setPagerH] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+
+  const hasActiveGame =
+    state.puzzle !== null &&
+    state.status === 'playing' &&
+    state.cells.some(c => !c.isGiven && c.value !== 0);
+
+  const goToPage = (i: number) => {
+    scrollRef.current?.scrollTo({ x: i * width, animated: true });
+    setPage(i);
+  };
+
+  const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const i = Math.round(e.nativeEvent.contentOffset.x / width);
+    if (i !== page) setPage(i);
+  };
 
   const handleSelectDifficulty = (d: Difficulty) => {
     setShowDifficulty(false);
@@ -20,57 +53,83 @@ export default function HomeScreen() {
     router.push('/game');
   };
 
-  const handleContinue = () => {
-    router.push('/game');
-  };
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.pageBackground }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.pageBackground }]} edges={['top', 'bottom']}>
       <DifficultySheet
         visible={showDifficulty}
         onSelect={handleSelectDifficulty}
         onClose={() => setShowDifficulty(false)}
       />
 
-      {/* Header with settings */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push('/settings')} style={styles.iconBtn}>
-          <Text style={{ fontSize: 22 }}>⚙️</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Logo */}
-      <View style={styles.logoArea}>
-        <Text style={[styles.logo, { color: colors.primaryText }]}>Sudoku</Text>
-        <Text style={[styles.tagline, { color: colors.secondaryText }]}>Klasik bulmaca oyunu</Text>
-      </View>
-
-      {/* Buttons */}
-      <View style={styles.buttons}>
-        <TouchableOpacity
-          onPress={() => setShowDifficulty(true)}
-          style={[styles.primaryBtn, { backgroundColor: colors.accent }]}
-          activeOpacity={0.8}
+      <View style={styles.pager} onLayout={e => setPagerH(e.nativeEvent.layout.height)}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={onScrollEnd}
         >
-          <Text style={styles.primaryBtnText}>Yeni Oyun</Text>
-        </TouchableOpacity>
+          {/* Page 1 — Home */}
+          <View style={{ width, height: pagerH }}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => router.push('/settings')} style={styles.iconBtn}>
+                <Text style={{ fontSize: 22 }}>⚙️</Text>
+              </TouchableOpacity>
+            </View>
 
-        {hasActiveGame && (
-          <TouchableOpacity
-            onPress={handleContinue}
-            style={[styles.secondaryBtn, { borderColor: colors.accent }]}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.secondaryBtnText, { color: colors.accent }]}>Devam Et</Text>
-          </TouchableOpacity>
-        )}
+            <View style={styles.logoArea}>
+              <Text style={[styles.logo, { color: colors.primaryText }]}>Sudoku</Text>
+              <Text style={[styles.tagline, { color: colors.secondaryText }]}>Klasik bulmaca oyunu</Text>
+            </View>
+
+            <View style={styles.buttons}>
+              <TouchableOpacity
+                onPress={() => setShowDifficulty(true)}
+                style={[styles.primaryBtn, { backgroundColor: colors.accent }]}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.primaryBtnText}>Yeni</Text>
+              </TouchableOpacity>
+
+              {hasActiveGame && (
+                <TouchableOpacity
+                  onPress={() => router.push('/game')}
+                  style={[styles.primaryBtn, { backgroundColor: colors.accent }]}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.primaryBtnText}>Devam Et</Text>
+                  <Text style={styles.continueSub}>
+                    {DIFF_LABELS[state.puzzle!.difficulty]} · {formatTime(state.elapsedSeconds)}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Page 2 — Stats */}
+          <View style={{ width, height: pagerH }}>
+            <StatsView title="İstatistikler" />
+          </View>
+        </ScrollView>
       </View>
 
-      {/* Stats hint */}
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={() => router.push('/stats')} style={styles.statsHint}>
-          <Text style={[styles.statsHintText, { color: colors.secondaryText }]}>İstatistikler →</Text>
-        </TouchableOpacity>
+      {/* Bottom tab bar */}
+      <View style={[styles.tabBar, { borderTopColor: colors.thinLine }]}>
+        {[{ i: 0, icon: '⌂' }, { i: 1, icon: '👤' }].map(({ i, icon }) => {
+          const active = page === i;
+          return (
+            <TouchableOpacity key={i} style={styles.tab} onPress={() => goToPage(i)} activeOpacity={0.7}>
+              <View
+                style={[
+                  styles.tabPill,
+                  active && { backgroundColor: colors.cardBackground, borderColor: colors.cardBorder, borderWidth: 1 },
+                ]}
+              >
+                <Text style={[styles.tabIcon, { color: active ? colors.accent : colors.secondaryText }]}>{icon}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </SafeAreaView>
   );
@@ -78,6 +137,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  pager: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 24, paddingTop: 8 },
   iconBtn: { padding: 8 },
   logoArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -85,7 +145,7 @@ const styles = StyleSheet.create({
   tagline: { fontSize: 15, marginTop: 4 },
   buttons: { paddingHorizontal: 32, paddingBottom: 32, gap: 14 },
   primaryBtn: {
-    height: 56,
+    height: 60,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -96,15 +156,21 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   primaryBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  secondaryBtn: {
-    height: 52,
-    borderRadius: 16,
-    borderWidth: 2,
+  continueSub: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '500', marginTop: 2 },
+  tabBar: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
+  tabPill: {
+    minWidth: 72,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 20,
   },
-  secondaryBtnText: { fontSize: 17, fontWeight: '600' },
-  footer: { alignItems: 'center', paddingBottom: 24 },
-  statsHint: { padding: 12 },
-  statsHintText: { fontSize: 14 },
+  tabIcon: { fontSize: 26 },
 });

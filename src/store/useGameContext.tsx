@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GameState, CellState, initCells, applyDigit, undoState, redoState, applyHint } from './gameStore';
+import { GameState, CellState, initCells, applyDigit, undoState, redoState, applyHint, completeBoardState } from './gameStore';
 import { Puzzle, Difficulty } from '../engine/types';
 import { generatePuzzle } from '../engine/generator';
 import { useSettings } from './useSettings';
@@ -37,6 +37,7 @@ type Action =
   | { type: 'UNDO' }
   | { type: 'REDO' }
   | { type: 'HINT' }
+  | { type: 'AUTO_COMPLETE' }
   | { type: 'TICK' }
   | { type: 'PAUSE' }
   | { type: 'RESUME' }
@@ -53,6 +54,8 @@ type ContextType = {
   undo: () => void;
   redo: () => void;
   hint: () => void;
+  completeBoard: () => void;
+  tick: () => void;
   pause: () => void;
   resume: () => void;
 };
@@ -71,7 +74,7 @@ const INITIAL: GameState = {
 
 const GameContext = createContext<ContextType | null>(null);
 
-function reducer(state: GameState, action: Action & { autoNoteClean?: boolean }): GameState {
+function reducer(state: GameState, action: Action & { autoNoteClean?: boolean; mistakeLimit?: boolean }): GameState {
   switch (action.type) {
     case 'START_GAME':
       return {
@@ -86,7 +89,10 @@ function reducer(state: GameState, action: Action & { autoNoteClean?: boolean })
       return { ...state, selected: action.idx };
     case 'INPUT_DIGIT':
       if (state.selected === null || state.status !== 'playing') return state;
-      return applyDigit(state, state.selected, action.digit, action.autoNoteClean ?? false);
+      return applyDigit(state, state.selected, action.digit, action.autoNoteClean ?? false, action.mistakeLimit ?? true);
+    case 'AUTO_COMPLETE':
+      if (state.status !== 'playing') return state;
+      return completeBoardState(state);
     case 'TOGGLE_NOTE_MODE':
       return { ...state, noteMode: !state.noteMode };
     case 'UNDO':
@@ -128,47 +134,84 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Auto-save active game state
+  // Auto-save active game state. Debounced so rapid taps (and the 1s timer tick)
+  // don't each trigger a full serialize + disk write on the interaction path.
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!loadedRef.current) return;
-    if (state.puzzle && state.status === 'playing') {
-      AsyncStorage.setItem(SAVE_KEY, serializeState(state));
-    } else if (state.status === 'won' || state.status === 'lost') {
+    if (state.status === 'won' || state.status === 'lost') {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
       AsyncStorage.removeItem(SAVE_KEY);
+      return;
     }
+    if (!state.puzzle || state.status !== 'playing') return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      AsyncStorage.setItem(SAVE_KEY, serializeState(state));
+    }, 600);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
   }, [state]);
 
-  useEffect(() => {
-    if (state.status !== 'playing') return;
-    const timer = setInterval(() => dispatch({ type: 'TICK' }), 1000);
-    return () => clearInterval(timer);
-  }, [state.status]);
+  // The 1s timer is driven by the game screen while it is focused (see game.tsx),
+  // so elapsed time does NOT keep advancing on the home screen / other screens.
 
-  const startGame = (difficulty: Difficulty) => {
+  // Stable callback identities so memoized children (e.g. board cells) aren't
+  // forced to re-render just because the provider re-rendered.
+  const startGame = useCallback((difficulty: Difficulty) => {
     const puzzle = generatePuzzle(difficulty);
     AsyncStorage.removeItem(SAVE_KEY);
     dispatch({ type: 'START_GAME', puzzle });
-  };
+  }, []);
 
-  const startSharedGame = (puzzle: Puzzle) => {
+  const startSharedGame = useCallback((puzzle: Puzzle) => {
     AsyncStorage.removeItem(SAVE_KEY);
     dispatch({ type: 'START_GAME', puzzle });
-  };
+  }, []);
 
-  const value: ContextType = {
+  const autoNoteClean = settings.autoNoteClean;
+  // Read the latest settings inside the stable inputDigit callback via a ref,
+  // so the callback identity never changes (keeps memoized children cheap).
+  const settingsRef = useRef({ autoNoteClean, mistakeLimit: settings.mistakeLimit });
+  settingsRef.current = { autoNoteClean, mistakeLimit: settings.mistakeLimit };
+
+  const selectCell = useCallback((idx: number | null) => dispatch({ type: 'SELECT_CELL', idx }), []);
+  const inputDigit = useCallback(
+    (digit: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9) =>
+      dispatch({
+        type: 'INPUT_DIGIT',
+        digit,
+        autoNoteClean: settingsRef.current.autoNoteClean,
+        mistakeLimit: settingsRef.current.mistakeLimit,
+      } as Action & { autoNoteClean: boolean; mistakeLimit: boolean }),
+    [],
+  );
+  const toggleNoteMode = useCallback(() => dispatch({ type: 'TOGGLE_NOTE_MODE' }), []);
+  const undo = useCallback(() => dispatch({ type: 'UNDO' }), []);
+  const redo = useCallback(() => dispatch({ type: 'REDO' }), []);
+  const hint = useCallback(() => dispatch({ type: 'HINT' }), []);
+  const completeBoard = useCallback(() => dispatch({ type: 'AUTO_COMPLETE' }), []);
+  const tick = useCallback(() => dispatch({ type: 'TICK' }), []);
+  const pause = useCallback(() => dispatch({ type: 'PAUSE' }), []);
+  const resume = useCallback(() => dispatch({ type: 'RESUME' }), []);
+
+  const value: ContextType = useMemo(() => ({
     state,
-    autoNoteClean: settings.autoNoteClean,
+    autoNoteClean,
     startGame,
     startSharedGame,
-    selectCell: (idx) => dispatch({ type: 'SELECT_CELL', idx }),
-    inputDigit: (digit) => dispatch({ type: 'INPUT_DIGIT', digit, autoNoteClean: settings.autoNoteClean } as Action & { autoNoteClean: boolean }),
-    toggleNoteMode: () => dispatch({ type: 'TOGGLE_NOTE_MODE' }),
-    undo: () => dispatch({ type: 'UNDO' }),
-    redo: () => dispatch({ type: 'REDO' }),
-    hint: () => dispatch({ type: 'HINT' }),
-    pause: () => dispatch({ type: 'PAUSE' }),
-    resume: () => dispatch({ type: 'RESUME' }),
-  };
+    selectCell,
+    inputDigit,
+    toggleNoteMode,
+    undo,
+    redo,
+    hint,
+    completeBoard,
+    tick,
+    pause,
+    resume,
+  }), [state, autoNoteClean, startGame, startSharedGame, selectCell, inputDigit, toggleNoteMode, undo, redo, hint, completeBoard, tick, pause, resume]);
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

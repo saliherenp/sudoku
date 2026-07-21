@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme } from 'react-native';
 import { SettingsProvider } from '../src/store/useSettings';
 import { GameProvider } from '../src/store/useGameContext';
+import { useTheme } from '../src/theme';
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -33,19 +33,26 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-export default function RootLayout() {
-  const scheme = useColorScheme();
+// Inside the providers so it can follow the app's chosen theme (light/dark/system)
+// rather than only the device color scheme.
+function ThemedStatusBar() {
+  const { isDark } = useTheme();
+  return <StatusBar style={isDark ? 'light' : 'dark'} />;
+}
 
+export default function RootLayout() {
   return (
     <ErrorBoundary>
       <SettingsProvider>
         <GameProvider>
-          <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+          <ThemedStatusBar />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="game" />
             <Stack.Screen name="stats" />
             <Stack.Screen name="settings" />
+            <Stack.Screen name="how-to" />
+            <Stack.Screen name="about" />
             <Stack.Screen name="play" />
           </Stack>
         </GameProvider>
