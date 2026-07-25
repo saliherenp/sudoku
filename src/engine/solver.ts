@@ -48,6 +48,11 @@ export function isValid(grid: Grid): boolean {
  * Fast bitmask-based solver. Counts solutions up to `limit` (stops early).
  */
 export function countSolutions(grid: Grid, limit = 2): number {
+  // Givens that already conflict with each other make the puzzle unsolvable, but
+  // the search below only ever reasons about empty cells — it would explore the
+  // whole (astronomically large) space before concluding that. Reject up front.
+  if (!isValid(grid)) return 0;
+
   // Build candidate bitmasks (bits 1–9)
   const cands = new Int32Array(81);
   for (let i = 0; i < 81; i++) {
@@ -118,6 +123,9 @@ function countBits(n: number): number {
  * Solves the puzzle and returns the completed grid, or null if unsolvable.
  */
 export function solve(grid: Grid): Grid | null {
+  // See countSolutions: conflicting givens must be rejected before searching.
+  if (!isValid(grid)) return null;
+
   const g = new Int32Array(grid);
   const cands = new Int32Array(81);
 
