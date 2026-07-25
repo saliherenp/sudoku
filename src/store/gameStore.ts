@@ -88,8 +88,10 @@ export function applyDigit(
     };
   } else {
     const correct = state.puzzle.solution[idx] === digit;
-    let newErrors = state.errorCount;
-    if (!correct) newErrors = Math.min(state.errorCount + 1, 3);
+    // Not clamped: with the mistake limit on the game ends at 3 anyway, and with
+    // it off the count has to keep rising — both the "Hata: N" readout and the
+    // buzz-on-new-mistake effect key off it changing.
+    const newErrors = correct ? state.errorCount : state.errorCount + 1;
 
     if (autoNoteClean && correct) {
       // Clear this digit from the notes of peers that contain it (new object per

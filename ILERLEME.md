@@ -191,6 +191,22 @@ son kontrol, mağaza gönderim bilgilerini (`eas.json` → `submit`) doldur.
 
 ## Değişiklik Günlüğü
 
+### 2026-07-25 (4. tur — titreşim düzeltmesi)
+- **Hata sayacındaki 3 sınırı kaldırıldı** (`gameStore.ts`). `Math.min(errorCount+1, 3)`
+  yüzünden "Hata limiti" ayarı KAPALIYKEN sayaç 3'te donuyordu; buna bağlı iki yan
+  etki vardı: (1) `game.tsx`'teki titreşim efekti `errorCount > prevErrorCount`
+  koşuluna baktığı için 4. ve sonraki hatalarda TİTREŞİM GELMİYORDU, (2) ekrandaki
+  "Hata: N" yazısı gerçek sayıyı göstermiyordu. Limit AÇIKKEN oyun zaten 3'te
+  bittiği için `/3` gösterimi etkilenmiyor.
+- **Titreşim uçtan uca doğrulandı** (Playwright + `navigator.vibrate` sarmalayıcı;
+  react-native-web `Vibration`'ı buna bağlıyor). Boş bir hücreye 1–9 arası tüm
+  rakamlar girildi: 8 hata → 8 titreşim (hepsi 200ms), doğru rakamda titreşim yok.
+  Sayaç "Hata: 8"e ulaştı (düzeltme öncesi 3'te donardı). Negatif kontrol: ayar
+  kapalıyken hatalar kaydedildi ama sıfır titreşim.
+- Titreşimin tetiklendiği TEK durum: not modu kapalıyken bir hücreye çözümdekinden
+  farklı rakam yazmak. Not modunda, aynı yanlış rakamı tekrar girince (hücreyi
+  temizler) ve diğer hiçbir etkileşimde titreşim yok.
+
 ### 2026-07-25 (2. tur — yayın öncesi denetim, KIRMIZI maddeler)
 Play Store öncesi tam denetim yapıldı. Bloke eden 5 madde düzeltildi:
 1. **`expo-asset` eksik peer + SDK çakışması (çökme riski).** `expo-audio`'nun peer'ı
