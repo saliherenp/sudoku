@@ -3,7 +3,7 @@
 > Bu dosya projenin `sudoku-spec.md` içindeki **Geliştirme Aşamaları**na göre
 > nerede olduğumuzu takip eder. Her önemli değişiklikte güncellenir.
 
-**Son güncelleme:** 2026-07-20
+**Son güncelleme:** 2026-07-25
 
 > Kontrol çubuğu düğme sırası soldan sağa: Geri Al · Yinele · Sil · Not · İpucu.
 > Kontrol çubuğu + rakam tuşları, tahtanın altındaki boşluğun yarısı kadar yukarı
@@ -136,9 +136,11 @@ yapılandırma hazır, ilk EAS derlemesi henüz alınmadı.
 ### ✅ 2. Oyun motoru
 - `src/engine/`: `generator.ts`, `solver.ts` (bitmask + MRV), `types.ts`.
 - **Doğrulandı:** 4 zorlukta 40 bulmaca üretildi — hepsi geçerli, tek çözümlü, <30ms.
-- Testler: `engine.test.ts` (jest), `quicktest.mjs` (standalone).
-- ⚠️ Not: `npm test` (jest) makinede ts-jest soğuk başlangıcı yüzünden çok yavaş;
-  motor mantığı doğru (standalone testte anında geçiyor). Jest kurulumu ayrıca elden geçirilebilir.
+- Testler: `engine.test.ts` (jest), `quicktest.mjs` (standalone) — ikisi de
+  `src/engine/__tests__/` altında, ikisi de 6/6 geçiyor.
+- **2026-07-25:** `npm test`'in asılı kalması ts-jest yavaşlığı değil, solver'da
+  çelişkili tahtaların reddedilmemesi hatasıymış — düzeltildi, süre 0.4 sn
+  (bkz. değişiklik günlüğü, 3. tur).
 
 ### ✅ 3. Tahta UI
 - `SudokuBoard`, `NumberPad`, `ControlBar`, `DifficultySheet`.
@@ -168,20 +170,14 @@ yapılandırma hazır, ilk EAS derlemesi henüz alınmadı.
 
 ### ⏳ 9. Yayın hazırlığı
 - `app.json`: ad "Sudoku", `scheme: sudoku`, ikon (`icon.png`), bundle/package `com.sudoku.app`.
-- **2026-07-18 düzeltildi:** Android adaptive icon kırık referanstaydı
-  (`./assets/adaptive-icon.png` yoktu). Artık mevcut dosyalara bağlı:
-  `android-icon-foreground/background/monochrome.png` (SDK 56 şeması, dokümanla doğrulandı).
+- **2026-07-25:** Yeni görseller (`icon.png`, `adaptive-icon.png`, `splash-icon.png`)
+  bağlandı; splash `expo-splash-screen` plugin'ine taşındı (bkz. günlük).
 - `eas.json`: development / preview / production build profilleri hazır.
 
 **Kalan işler (ağ + Expo hesabı gerektirir — kullanıcı tarafında):**
-1. **Splash migration (önerilen):** SDK 56'da top-level `splash` anahtarı şemada yok;
-   `expo-splash-screen` plugin'ine taşınmalı. Expo Go'da mevcut hâliyle çalışıyor ama
-   standalone derlemede plugin gerekir. Adım: `npx expo install expo-splash-screen`,
-   sonra `app.json` `plugins`'e `["expo-splash-screen", { image, resizeMode, backgroundColor }]`
-   ekle ve top-level `splash`'i kaldır. (Ağ olmadığı için şu an kurulamadı.)
-2. `npx expo-doctor` ile son kontrol (ağ gerekir).
-3. EAS: `eas login` → `eas build -p android --profile preview` (APK) / `-p ios`.
-4. Mağaza gönderimi: `eas.json` → `submit.production` alanlarını doldur
+1. `npx expo-doctor` ile son kontrol (ağ gerekir).
+2. EAS: `eas login` → `eas build -p android --profile preview` (APK) / `-p ios`.
+3. Mağaza gönderimi: `eas.json` → `submit.production` alanlarını doldur
    (Apple ID, ASC app ID, Apple Team ID / Android service account) — kullanıcıya özel sırlar.
 
 ---
@@ -194,6 +190,122 @@ son kontrol, mağaza gönderim bilgilerini (`eas.json` → `submit`) doldur.
 ---
 
 ## Değişiklik Günlüğü
+
+### 2026-07-25 (2. tur — yayın öncesi denetim, KIRMIZI maddeler)
+Play Store öncesi tam denetim yapıldı. Bloke eden 5 madde düzeltildi:
+1. **`expo-asset` eksik peer + SDK çakışması (çökme riski).** `expo-audio`'nun peer'ı
+   `expo-asset: "*"` olduğu için npm SDK 57'yi (57.0.6) çekip hoist etmişti; `expo`
+   ise 56.0.17 istiyordu. expo-doctor: "app may crash outside of Expo Go". Expo Go'da
+   görünmeyen, sadece gerçek build'de patlayan bir hataydı. `npx expo install expo-asset`
+   ile hepsi 56.0.21'e dedupe edildi.
+2. **Hassas Android izinleri temizlendi.** Tek bir `pop.wav` için manifest'te
+   `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `FOREGROUND_SERVICE(_MEDIA_PLAYBACK)`,
+   `READ/WRITE_EXTERNAL_STORAGE` vardı — Play'de mikrofon izni hassas izin beyanı
+   gerektirir ve bir Sudoku oyununda ret sebebidir. Çözüm: `expo-audio` plugin'i
+   `{ recordAudioAndroid: false, microphonePermission: false, enableBackgroundPlayback: false }`
+   + `android.blockedPermissions` ile şablondan gelen 3 izin (`SYSTEM_ALERT_WINDOW`,
+   `READ/WRITE_EXTERNAL_STORAGE`) `tools:node="remove"` ile silindi.
+   **Kalan efektif izinler: INTERNET, VIBRATE, MODIFY_AUDIO_SETTINGS (+POST_NOTIFICATIONS).**
+3. **Paket adı `com.sudoku.app` → `com.saliherenparca.sudoku`** (android.package +
+   ios.bundleIdentifier). Eski ad çok jenerikti, Play'de alınmış olma ihtimali
+   yüksekti ve yayınlandıktan sonra ASLA değiştirilemez. Kullanıcı onayıyla yapıldı.
+4. **Gizlilik politikası eklendi:** `docs/privacy.html` (GitHub Pages'te
+   `https://saliherenp.github.io/sudoku/privacy.html`). İçerik kodla doğrulandı:
+   sıfır ağ çağrısı, sıfır analitik, sadece 3 yerel AsyncStorage anahtarı.
+   Play Console'a bu URL girilecek.
+5. **10 paket SDK 56 ile hizalandı** (`npx expo install --fix`): expo 56.0.12→56.0.17,
+   expo-router 56.2.11→56.2.16, react-native-screens 4.25.2→4.26.0, jest 30→29.7 vb.
+
+**expo-doctor artık 20/21 geçiyor** (kalan tek hata yerel CocoaPods kurulu olmaması —
+EAS bulut derlemesini etkilemez). `tsc --noEmit` temiz. Expo web + Playwright ile
+duman testi: ana ekran → zorluk sayfası → üretilmiş tahta akışı çalışıyor, konsol
+hatası yok (yani sürüm yükseltmeleri ve paket adı değişikliği bir şey bozmadı).
+
+### 2026-07-25 (3. tur — SARI maddeler)
+
+- **🐛 SOLVER HATASI BULUNDU VE DÜZELTİLDİ (`src/engine/solver.ts`).** `npm test`'in
+  "bu makinede ts-jest yavaş" sanılan takılması aslında gerçek bir motor hatasıymış.
+  `solve()` ve `countSolutions()` aday bit maskelerini yalnızca BOŞ hücreler için
+  kuruyor, dolu hücrelerin birbiriyle çelişip çelişmediğini hiç kontrol etmiyordu.
+  Çelişkili bir tahta verildiğinde (test: aynı satırda iki 1) solver bunları sabit
+  kabul edip kalan 79 hücre için var olmayan bir çözüm arıyor → arama uzayı
+  astronomik → pratikte sonsuz döngü. Düzeltme: her iki fonksiyonun başına
+  `if (!isValid(grid)) return null / 0`. Test süresi **sonsuz → 0.4 saniye**.
+  Teşhis: aynı jest yapılandırmasıyla basit bir test 0.35 sn'de geçti, yani
+  altyapı sağlamdı; sorun test dosyasının kendisindeydi.
+- **`npm test` artık ÇALIŞIYOR: 6/6 geçiyor, 0.4 sn.** ("jest çok yavaş" notu
+  bu yüzden yukarıdaki Aşama 2 açıklamasından kaldırıldı — sebep buydu.)
+  `quicktest.mjs` silinmemiş, `src/engine/__tests__/` içinde; o da 6/6 geçiyor.
+- **Bildirim ikonu eklendi:** `assets/notification-icon.png` — 96×96 beyaz-şeffaf
+  sudoku ızgarası silüeti (bağımlılıksız üretildi; Android ikonu alfa maskesi
+  olarak kullandığı için renkli app ikonu beyaz kareye dönüşüyordu). `app.json`
+  `expo-notifications` plugin'ine `icon` + `color: #4F66E8` verildi. Doğrulandı:
+  5 yoğunlukta `drawable-*/notification_icon.png` üretildi, manifest meta-data
+  ve `notification_icon_color` bağlandı.
+- **`ErrorBoundary` üretim modu ayrıldı** (`app/_layout.tsx`): `__DEV__` değilken
+  ham JS stack yerine splash zeminiyle uyumlu sade bir özür ekranı gösteriliyor.
+  Geliştirmede stack trace aynen duruyor.
+- **`playwright` + `@expo/ngrok` `devDependencies`'e taşındı.**
+- `useSettings.ts`'teki yanlış `(placeholder)` yorumları düzeltildi (hepsi canlı).
+
+**Son durum:** `tsc --noEmit` temiz · `npm test` 6/6 · `expo-doctor` 20/21 (kalan
+tek hata yerel CocoaPods, EAS'i etkilemez) · efektif Android izinleri yalnızca
+INTERNET, VIBRATE, MODIFY_AUDIO_SETTINGS.
+
+**HÂLÂ AÇIK:**
+- OTA güncelleme kapalı (`expo-updates` yok) → hotfix için yeni build + inceleme.
+  Bilinçli tercih; istenirse `npx expo install expo-updates` ile açılabilir.
+- **Uygulama hiç gerçek cihazda çalıştırılmadı.** Tüm doğrulama expo web üzerinden;
+  ses, titreşim, bildirim, deep link ve splash'in native davranışı test edilmedi.
+  Play'e yüklemeden önce `eas build -p android --profile preview` ile APK alınıp
+  telefonda bir tur oynanmalı.
+- `docs/privacy.html` ve tüm bu değişiklikler henüz commit/push edilmedi.
+
+### 2026-07-25
+- **İkon/splash varlıkları yenilendi** (`app.json`): `assets/` artık sadece
+  `icon.png`, `adaptive-icon.png`, `splash-icon.png` içeriyor. Android adaptive icon
+  eski `android-icon-{foreground,background,monochrome}.png` referanslarından
+  (dosyalar silinmişti) `foregroundImage: ./assets/adaptive-icon.png` +
+  `backgroundColor: #1c2139` şemasına geçti. `web.favicon` da var olmayan
+  `favicon.png` yerine `icon.png`'ye bağlandı.
+- **Splash migration TAMAM:** `expo-splash-screen` (~56.0.14) kuruldu, top-level
+  `splash` anahtarı kaldırılıp plugin eklendi (`image: splash-icon.png`,
+  `imageWidth: 220`, `resizeMode: contain`, `backgroundColor: #1c2139`).
+  `npx expo config --type prebuild` ile çözümlendiği doğrulandı.
+- **Markalı açılış ekranı** (`src/components/SplashScreen.tsx`, yeni): dikey
+  gradyan (#292f51 → #1c2139 → #161a2d, `expo-linear-gradient`), 180×180 logo,
+  "Sudoku" (40px bold) + "Zihnini çalıştır" (#8fa4ea). 1.8 sn sonra `onFinish`.
+  Girişte kısa fade+yukarı kayma (native driver, projedeki animasyon deseniyle aynı).
+- **`_layout.tsx` bağlandı:** kullanıcının örnek kodu `App.js` varsayıyordu, bizde
+  expo-router olduğu için mantık root layout'a taşındı. Splash, `Stack`'in ÜSTÜNDE
+  `absoluteFill` katman olarak duruyor — navigator mount kalıyor, böylece splash
+  ekrandayken deep link (`sudoku://play?...`) çözülmeye devam ediyor. Native splash
+  `preventAutoHideAsync()` ile tutulup layout mount olunca `hideAsync()` ile
+  bırakılıyor (arada beyaz flaş yok). Splash görünürken durum çubuğu `light`.
+- **Doğrulama:** `npx tsc --noEmit` temiz; expo web + Playwright ile splash ekranı
+  ve 1.8 sn sonra ana ekrana geçiş görsel olarak onaylandı, konsol hatası yok.
+- **`npx expo prebuild --clean` çalıştırıldı** (native doğrulama). Üretilen dosyalar
+  kontrol edildi: `values/colors.xml` → `splashscreen_background`/`iconBackground`
+  `#1c2139`, tüm yoğunluklarda `splashscreen_logo.png`, `mipmap-anydpi-v26/ic_launcher.xml`
+  adaptive icon doğru. `android/`+`ios/` zaten `.gitignore`'da (satır 40-41) —
+  EAS Build bulutta kendi prebuild'ini yapıyor, bu klasörler tek kullanımlık.
+- **`expo-system-ui` (~56.0.5) eklendi:** prebuild `userInterfaceStyle: automatic`
+  için bu paketi istiyordu (Android'de tema otomatiği onsuz çalışmıyor). Uyarı gitti.
+- NOT: prebuild yerel iOS için CocoaPods kurmayı önerir; EAS kullanıldığı için
+  gerek yok, `--no-install` ile atlanabilir.
+- **Splash animasyonu Reanimated'a geçti:** `react-native-reanimated` 4.3.1 +
+  `react-native-worklets` 0.8.3 kuruldu. `SplashScreen.tsx` artık RN `Animated`
+  yerine `Animated.Image entering={FadeIn.duration(700)}`, başlık
+  `FadeInDown.delay(400).duration(600)`, slogan `FadeInDown.delay(650).duration(600)`
+  kullanıyor (kademeli giriş). Gradyan ve 1.8 sn `onFinish` aynı.
+  ⚠️ `babel.config.js` YOK ve gerekmiyor — SDK 56'da Reanimated babel plugin'i
+  `babel-preset-expo` tarafından paket kurulunca otomatik ekleniyor. Elle
+  `react-native-reanimated/plugin` yazmak Reanimated 4'te hatalı (artık
+  `react-native-worklets/plugin`) ve çift-plugin hatası verir.
+  Doğrulama: `tsc --noEmit` temiz; expo web + Playwright ile kademeli giriş kare
+  kare onaylandı (logo tek başına → başlık alttan → slogan), konsol hatası yok.
+  Reanimated native bağımlılık olduğu için `prebuild --clean --no-install`
+  tekrar çalıştırıldı.
 
 ### 2026-07-20
 - **Oyun ekranı üst düzeni marketteki uygulamalara yaklaştırıldı** (`app/game.tsx`):

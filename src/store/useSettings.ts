@@ -73,18 +73,18 @@ export type Settings = {
   theme: ThemeMode;
   showErrors: boolean;          // internal — hatalı girişleri kırmızı göster (her zaman açık)
   // Geri bildirim
-  soundEffects: boolean;        // Ses Efekti        (placeholder)
-  vibration: boolean;           // Titreşim          (placeholder)
-  notifications: boolean;       // Bildirim          (placeholder)
+  soundEffects: boolean;        // Ses Efekti        (canlı)
+  vibration: boolean;           // Titreşim          (canlı)
+  notifications: boolean;       // Bildirim          (canlı — dev/prod build; Expo Go Android'de yok)
   // Oyun
   showTimer: boolean;           // Saat              (canlı)
   mistakeLimit: boolean;        // Hata limiti       (canlı)
   highlightRelated: boolean;    // Bölge Vurgusu     (canlı)
   highlightSameNumber: boolean; // Aynı Sayıları Vurgula (canlı)
   autoNoteClean: boolean;       // Otomatik Temizle  (canlı)
-  autoComplete: boolean;        // Otomatik Tamamlama (placeholder)
+  autoComplete: boolean;        // Otomatik Tamamlama (canlı)
   // Bilgi
-  puzzleInfo: boolean;          // Bulmaca Bilgileri (placeholder)
+  puzzleInfo: boolean;          // Bulmaca Bilgileri (canlı)
   remainingCount: boolean;      // Kalan numara      (canlı)
 };
 
