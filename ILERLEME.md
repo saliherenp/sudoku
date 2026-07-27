@@ -191,6 +191,26 @@ son kontrol, mağaza gönderim bilgilerini (`eas.json` → `submit`) doldur.
 
 ## Değişiklik Günlüğü
 
+### 2026-07-26 (ses efekti)
+- **`assets/sounds/pop.wav` → `assets/sounds/tap.wav`** (kullanıcının seçtiği yeni ses).
+  `game.tsx`'teki `require` güncellendi.
+- **Ses optimize edildi** (tını değiştirilmeden, yalnızca kesim/sönüm/seviye):
+  1032ms → **130ms**, tepe 1.000 → **0.35**, 194KB → **24KB**. dB zarfı ölçüldü:
+  tepe 20ms'de, -40dB 95ms'de, -60dB 115ms'de; yani 130ms'den sonrası duyulamayan
+  gürültü tabanıydı, duyulabilir hiçbir şey kırpılmadı. Son 15ms'ye yükselen
+  kosinüs sönüm eklendi (dosya tam sıfırda bitiyor, kesim çıtırtısı yok).
+  Stereo 48kHz korundu — L/R korelasyonu -0.10, yani gerçek stereo; mono'ya
+  indirmek karakteri bozardı.
+- **Süre neden önemliydi:** ses her hamlede `seekTo(0); play()` ile baştan
+  başlatılıyor ve 70ms throttle var; 1 saniyelik hâli normal oyunda hiç tam
+  duyulamıyordu.
+- Optimizasyon script'i tek seferlik değil, parametreli:
+  `node optimise-wav.mjs <in> <out> <ms> <tepe>` (scratchpad'de).
+- ⚠️ **Ses SADECE doğru girişte değil, HER hamlede çalıyor** — yanlış girişte,
+  not eklemede, silmede de. Koşul `history.length` artışı (`game.tsx`), doğruluk
+  kontrolü yok. Kullanıcı bunu doğru girişe özel sanıyordu; şimdilik davranış
+  bilinçli olarak değiştirilmedi.
+
 ### 2026-07-25 (4. tur — titreşim düzeltmesi)
 - **Hata sayacındaki 3 sınırı kaldırıldı** (`gameStore.ts`). `Math.min(errorCount+1, 3)`
   yüzünden "Hata limiti" ayarı KAPALIYKEN sayaç 3'te donuyordu; buna bağlı iki yan

@@ -67,7 +67,7 @@ export default function GameScreen() {
   // Sound effect: play a short pop on each move (a new history entry) if enabled.
   // Throttled so very fast input doesn't thrash the audio engine (which would
   // otherwise fight the JS thread and make rapid entry feel like it lags).
-  const player = useAudioPlayer(require('../assets/sounds/pop.wav'));
+  const player = useAudioPlayer(require('../assets/sounds/tap.wav'));
   const prevMovesRef = useRef(history.length);
   const lastSoundRef = useRef(0);
   useEffect(() => {
