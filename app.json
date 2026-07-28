@@ -9,13 +9,21 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.saliherenparca.sudoku"
+      "bundleIdentifier": "com.saliherenparca.sudoku",
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/icon-ios-dark.png",
+        "tinted": "./assets/icon-ios-tinted.png"
+      }
     },
     "android": {
       "package": "com.saliherenparca.sudoku",
+      "icon": "./assets/icon.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1c2139"
+        "backgroundImage": "./assets/adaptive-icon-bg.png",
+        "backgroundColor": "#1c2139",
+        "monochromeImage": "./assets/adaptive-icon-mono.png"
       },
       "predictiveBackGestureEnabled": false,
       "blockedPermissions": [

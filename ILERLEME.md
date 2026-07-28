@@ -3,7 +3,7 @@
 > Bu dosya projenin `sudoku-spec.md` içindeki **Geliştirme Aşamaları**na göre
 > nerede olduğumuzu takip eder. Her önemli değişiklikte güncellenir.
 
-**Son güncelleme:** 2026-07-25
+**Son güncelleme:** 2026-07-28
 
 > Kontrol çubuğu düğme sırası soldan sağa: Geri Al · Yinele · Sil · Not · İpucu.
 > Kontrol çubuğu + rakam tuşları, tahtanın altındaki boşluğun yarısı kadar yukarı
@@ -190,6 +190,38 @@ son kontrol, mağaza gönderim bilgilerini (`eas.json` → `submit`) doldur.
 ---
 
 ## Değişiklik Günlüğü
+
+### 2026-07-28 (uygulama ikonu optimizasyonu)
+- **Tespit edilen sorunlar** (kullanıcının ana ekran görüntüsünden): iOS zaten
+  squircle maskesi uyguluyorken ikonun *içinde* de ayrı bir yuvarlak çerçeve
+  vardı (çift yuvarlaklık, köşelerde kirli halka); kenar boşluğu ~%6 olduğu için
+  çerçevenin köşeleri maskeyle kırpılıyordu; ızgara çizgileri koyu zeminde
+  silikti; 60px'te 6 rakam okunmuyordu.
+- **Yeni tasarım** (koyu tema kimliği korundu): iç çerçeve tamamen kaldırıldı,
+  yalnızca 2 dikey + 2 yatay çizgi ("#") kaldı; koyu lacivert gradyan zemin
+  (`#2C3459` → `#14172A`); rakamlar 6/1/5/7/3 olarak X deseninde 5 adete indi
+  (`#F2F4FF` + vurgu `#8BA8FF`, Avenir Next Heavy); içerik %67 kutuda, maske
+  güvenli alanının içinde.
+- **Platform varyantları eklendi:**
+  - `ios.icon` → `light` / `dark` / `tinted`. Expo eklentisi `light` ve
+    `tinted`'ta şeffaflığı beyaza düzleştirip `dark`'ta koruduğu için
+    (`@expo/prebuild-config` `withIosIcons.js`), dark şeffaf zeminli, tinted opak
+    gri tonlamalı üretildi.
+  - `android.adaptiveIcon` → `backgroundImage` (gradyan) + `monochromeImage`
+    (Android 13+ tema ikonu) eklendi; `foregroundImage` içeriği merkezdeki
+    %60,5'lik kutuya çekildi (adaptive güvenli alan %66).
+  - `android.icon` (eski cihazlar için legacy ikon) eklendi.
+- **`assets/notification-icon.png` düzeltildi**: eskiden düz beyaz kareydi;
+  Android bildirim ikonunu alfa kanalından silüet olarak çizdiği için bildirimde
+  dolu beyaz blok görünüyordu. Artık rakamsız, kalın beyaz ızgara silüeti.
+- **`assets/splash-icon.png`** yeni ikon diliyle yeniden üretildi.
+- **`scripts/generate-icons.js`** eklendi: tüm ikon seti SVG'den üretiliyor
+  (`node scripts/generate-icons.js <dizin>` + `rsvg-convert`), böylece renk/rakam
+  değişiklikleri elle çizim gerektirmiyor.
+- **Doğrulandı**: `npx expo config` şemayı çözüyor; `npx expo prebuild` sonrası
+  `AppIcon.appiconset/Contents.json` dark+tinted appearance kayıtlarını,
+  `mipmap-anydpi-v26/ic_launcher.xml` ise background/foreground/monochrome
+  katmanlarını içeriyor. Üretilen iOS light ikonunda alfa yok (App Store şartı).
 
 ### 2026-07-26 (ses efekti)
 - **`assets/sounds/pop.wav` → `assets/sounds/tap.wav`** (kullanıcının seçtiği yeni ses).
