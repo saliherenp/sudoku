@@ -191,6 +191,103 @@ son kontrol, mağaza gönderim bilgilerini (`eas.json` → `submit`) doldur.
 
 ## Değişiklik Günlüğü
 
+### 2026-08-04 (4. tur — açılış ekranları ikonla uyumlu hale getirildi)
+- **İstek:** 2026-07-28'de yenilenen ikon beğenildi; native splash ve onun
+  devrettiği JS açılış ekranı da aynı dile getirilecek. **İkon dosyalarına
+  dokunulmadı** — sadece `assets/splash-icon.png` yeniden üretildi.
+- **Tespit edilen 3 uyumsuzluk:**
+  1. *Izgara ikondakinden silikti.* Çizgi kalınlığı piksel olarak sabitti
+     (16), ama splash kutusu ikonunkinden büyük (840 vs 688) olduğu için
+     **oran** düşüyordu (0.019 vs 0.0218). `generate-icons.js`'te splash artık
+     kalınlığı ikonun oranından türetiyor (`840 * 15/688` = 18); opaklık büyük
+     ölçekte okunurluk için 0.55 → 0.62.
+  2. *Üç ayrı arka plan vardı:* ikon gradyanı (`#2C3459`→`#14172A`), native
+     splash düz `#1c2139`, JS splash başka bir gradyan (`#292f51`/`#1c2139`/
+     `#161a2d`). JS splash artık ikonun gradyanını birebir kullanıyor (aynı
+     eğim: `start (0,0)` → `end (0.4,1)`); native splash düz renk desteklediği
+     için gradyanın orta tonuna (`#202641`) çekildi ki devir teslimde renk
+     sıçraması olmasın. Hata ekranının zemini de aynı tona eşitlendi.
+  3. *Devir tesliminde logo zıplıyordu:* native splash işareti ekran
+     merkezinde 220pt çiziyor, JS splash ise 180pt'ye küçültüp başlık+slogan
+     onu yukarı ittiği için farklı yere koyuyordu. Artık logo 220pt ve tam
+     merkezde (`LOGO_SIZE` app.json'daki `imageWidth` ile eşleşiyor), başlık
+     bloğu `position: absolute` ile altına sabitlendi. Logodaki `FadeIn` de
+     kaldırıldı — native splash o işareti zaten çizmiş durumda, tekrar fade
+     etmek parlama yaratıyordu; sadece başlık/slogan animasyonlu geliyor.
+- Doğrulama: `npx tsc --noEmit` ve `npx expo config` temiz; her iki ekran da
+  SVG önizleme olarak render edilip ikonla yan yana karşılaştırıldı.
+- **Not:** native splash (arka plan rengi + PNG) config plugin üzerinden
+  native projeye işlendiği için **yeni bir build** gerektirir; JS açılış ekranı
+  değişiklikleri normal JS yenilemesiyle görünür.
+
+### 2026-08-04 (3. tur — seçili rakamın notlardaki eşleri de vurgulanıyor)
+- **İstek:** Dolu bir kutu seçilince aynı rakamı içeren *dolu* kutular
+  vurgulanıyordu; aynı rakamın **not olarak** yazıldığı kutularda da o notun
+  belirginleşmesi isteniyor (kutunun zemini değil, notun kendisi).
+- **Çözüm** (`SudokuBoard.tsx`): eşleşen not daha büyük (`0.26` vs `0.20`
+  hücre boyutu), daha kalın (`800` vs `600`) ve yeni `pencilMarkHighlight`
+  rengiyle çiziliyor. Aynı ayara bağlı: "aynı rakamı vurgula" kapalıysa bu da
+  çalışmıyor.
+- **Performans notu:** vurgulanacak rakam tahta geneline tek prop olarak değil,
+  hücre başına hesaplanıp veriliyor (`noteHighlight`, 0 = yok). Böylece seçim
+  değişince 81 hücre değil, yalnızca o rakamı not almış hücreler yeniden
+  render ediliyor — mevcut `React.memo` optimizasyonu bozulmuyor.
+- `colors.ts`: `pencilMarkHighlight` eklendi — açık tema `#3F57C9`, koyu tema
+  `#9FB6FF`. Düz zemin, satır/sütun/kutu vurgusu ve seçili hücre zemininin
+  üçünde de okunur olacak şekilde seçildi.
+- Doğrulama: `npx tsc --noEmit` temiz.
+
+### 2026-08-04 (2. tur — "Yeni Oyun" artık zorluk soruyor)
+- **İstek:** Kazanma ekranındaki "Yeni Oyun" sessizce önceki oyunla aynı zorlukta
+  başlıyordu; bunun yerine zorluk seçme ekranı gelmeli.
+- **Çözüm** (`app/game.tsx`): ana ekranın kullandığı `DifficultySheet` oyun
+  ekranına da bağlandı. `handleNewGame` artık sadece sheet'i açıyor; seçim
+  yapılınca `handleSelectDifficulty` seçilen zorlukla `startGame(d)` çağırıyor.
+  `START_GAME` durumu `playing`'e çevirdiği için sonuç overlay'i kendiliğinden
+  kapanıyor — ekstra yönlendirme (`router`) gerekmiyor, oyuncu oyun ekranında
+  kalıyor.
+- `recordedRef` sıfırlaması `handleSelectDifficulty`'ye taşındı (oyun gerçekten
+  başladığı anda), sheet kapatılırsa boşuna sıfırlanmıyor.
+- Kaybetme ekranındaki "Tekrar Dene" (aynı bulmaca) değişmedi.
+- Doğrulama: `npx tsc --noEmit` temiz.
+
+### 2026-08-04 (tamamlanan rakam butonu not modunda geri açılıyordu)
+- **Belirti:** Bir rakamın 9'u da girilince butonu sönüyor ve altında ✓ çıkıyor;
+  ancak "Not al" tuşuna basınca aynı buton yeniden aktif hale geliyordu.
+- **Kök neden:** `NumberPad.tsx`'te `disabled = done && !noteMode`. Bu, eskiden
+  bilinçli bir kaçış yoluydu: `usedCounts` **hatalı** girişleri de sayıyordu, yani
+  tahtada yanlış bir 1 varken sayaç 9'a ulaşıp buton kilitlenebiliyor ve oyuncu
+  gerçek 1'i giremiyordu (bkz. 2026-07-20 "not modunda tıkanma").
+- **Çözüm (iki parça — kaçış yolu ancak sayaç doğrulanınca kaldırılabilirdi):**
+  - `usedCounts` artık `c.value === d && !c.isError` sayıyor. Hatalı girişler
+    "tamamlandı" saymıyor; hem ✓ yanıltmıyor hem de yanlış giriş varken buton
+    açık kalıyor — eski tıkanma bu yolla kökten çözülüyor.
+  - `disabled = done` — 9'u da **doğru** girilmiş rakam not modunda da kapalı
+    kalıyor (not alınacak bir şey kalmadığı için).
+  - Artık kullanılmayan `noteMode` prop'u `NumberPad`'den ve `game.tsx`'teki
+    çağrısından kaldırıldı.
+- Doğrulama: `npx tsc --noEmit` temiz; motor testleri bu değişiklikten etkilenmiyor.
+
+### 2026-07-30 (ses efekti başka uygulamanın müziğini kesiyordu)
+- **Belirti:** Spotify'da şarkı dinlerken tahtaya rakam girildiğinde çıkan tap
+  sesi, çalan şarkıyı duraklatıyordu.
+- **Kök neden:** Uygulama hiç `setAudioModeAsync` çağırmıyordu, yani ses oturumu
+  platformun varsayılanıyla açılıyordu: Android'de tam ses odağı (audio focus)
+  isteniyor — bu diğer uygulamaları duraklatır; iOS'ta ise efekt bittiğinde
+  oturum devre dışı bırakılıp arka plandaki sesi kesiyor.
+- **Çözüm:**
+  - `app/_layout.tsx`: modül yüklenirken bir kez
+    `setAudioModeAsync({ interruptionMode: 'mixWithOthers', shouldPlayInBackground: false, allowsRecording: false })`.
+    `mixWithOthers` Android'de hiç ses odağı istemiyor, iOS'ta karışabilir
+    (mixable) kategori kullanıyor. `playsInSilentMode` varsayılanda (`true`)
+    bırakıldı — sessiz moddaki mevcut davranış bilinçli olarak değiştirilmedi.
+  - `app/game.tsx`: `useAudioPlayer(..., { keepAudioSessionActive: true })` —
+    iOS'ta kısa efekt bitince oturumun kapatılmasını (dolayısıyla diğer
+    uygulamanın sesinin kesilmesini) engelliyor.
+- Doğrulama: `npx tsc --noEmit` temiz. Gerçek cihazda Spotify çalarken rakam
+  girip müziğin kesilmediği kontrol edilmeli (simülatörde bu davranış güvenilir
+  şekilde tekrarlanmaz).
+
 ### 2026-07-28 (uygulama ikonu optimizasyonu)
 - **Tespit edilen sorunlar** (kullanıcının ana ekran görüntüsünden): iOS zaten
   squircle maskesi uyguluyorken ikonun *içinde* de ayrı bir yuvarlak çerçeve

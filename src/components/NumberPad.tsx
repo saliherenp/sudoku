@@ -49,7 +49,6 @@ function PadButton({
 type Props = {
   onPress: (digit: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9) => void;
   cells: CellState[];
-  noteMode: boolean;
   showRemaining: boolean;
 };
 
@@ -58,7 +57,7 @@ type Props = {
 const SIDE = 5;
 const GAP = 5;
 
-function NumberPad({ onPress, cells, noteMode, showRemaining }: Props) {
+function NumberPad({ onPress, cells, showRemaining }: Props) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
 
@@ -69,7 +68,10 @@ function NumberPad({ onPress, cells, noteMode, showRemaining }: Props) {
   const usedCounts = React.useMemo(() => {
     const counts: Record<number, number> = {};
     for (let d = 1; d <= 9; d++) {
-      counts[d] = cells.filter(c => c.value === d).length;
+      // Wrong entries stay on the board (red), so they must not count towards
+      // the digit being "done" — otherwise the ✓ would lie and the button
+      // would lock while a correct placement is still missing.
+      counts[d] = cells.filter(c => c.value === d && !c.isError).length;
     }
     return counts;
   }, [cells]);
@@ -77,9 +79,10 @@ function NumberPad({ onPress, cells, noteMode, showRemaining }: Props) {
   return (
     <View style={styles.row}>
       {([1, 2, 3, 4, 5, 6, 7, 8, 9] as const).map(d => {
+        // All 9 correctly placed: the digit is finished, so it stays off in note
+        // mode too — there is nothing left to take a note about.
         const done = usedCounts[d] >= 9;
-        // In note mode a fully-placed digit can still be toggled as a note.
-        const disabled = done && !noteMode;
+        const disabled = done;
         return (
           <PadButton
             key={d}

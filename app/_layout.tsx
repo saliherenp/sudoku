@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as NativeSplash from 'expo-splash-screen';
+import { setAudioModeAsync } from 'expo-audio';
 import { SettingsProvider } from '../src/store/useSettings';
 import { GameProvider } from '../src/store/useGameContext';
 import { useTheme } from '../src/theme';
@@ -11,6 +12,16 @@ import SplashScreen from '../src/components/SplashScreen';
 // Hold the native splash until our own one is mounted, so the handoff has no
 // white flash in between.
 NativeSplash.preventAutoHideAsync().catch(() => {});
+
+// Our only audio is a short tap effect, so the session must never take audio
+// focus away from whatever the player is already listening to (Spotify, a
+// podcast, ...). 'mixWithOthers' requests no focus on Android and uses the
+// ambient/mixable category on iOS. Set once, globally, before anything plays.
+setAudioModeAsync({
+  interruptionMode: 'mixWithOthers',
+  shouldPlayInBackground: false,
+  allowsRecording: false,
+}).catch(() => {});
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -60,7 +71,7 @@ const errorStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
-    backgroundColor: '#1c2139',
+    backgroundColor: '#202641', // same flat brand tone as the native splash
   },
   emoji: { fontSize: 56, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: '700', color: '#eef1f8', textAlign: 'center' },

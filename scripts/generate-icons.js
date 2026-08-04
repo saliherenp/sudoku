@@ -117,10 +117,14 @@ const targets = {
     given: '#FFFFFF', accent: '#FFFFFF', withDigits: false,
   }),
 
-  // Splash: #1c2139 üzerine 220px genişlikte, şeffaf zemin
+  // Splash: şeffaf zemin, 220pt genişlikte gösterilir. Çizgi kalınlığı ikonla
+  // AYNI orana sabitlendi (ikon: 15/688 = 0.0218) — yoksa daha büyük kutuda
+  // aynı piksel kalınlığı ince kalıyor ve ızgara ikondakinden silik görünüyor.
+  // Opaklık, 220pt'lik büyük ölçekte de ikondaki kadar okunsun diye bir tık üstte.
   'splash-icon': svg({
     background: null,
-    box: 840, lineColor: BRAND.line, lineWidth: 16, lineOpacity: 0.55,
+    box: 840, lineWidth: Math.round(840 * (15 / FULL_BOX)),
+    lineColor: BRAND.line, lineOpacity: 0.62,
     given: BRAND.given, accent: BRAND.accent,
   }),
 };

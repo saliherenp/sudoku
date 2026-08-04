@@ -36,6 +36,9 @@ export const LightColors = {
 
   // Pencil marks
   pencilMark: '#A6A9B4',
+  // A note matching the selected digit: must stay legible on the plain board,
+  // on the row/col/box highlight and on the selected cell itself.
+  pencilMarkHighlight: '#3F57C9',
 } as const;
 
 export const DarkColors = {
@@ -76,6 +79,7 @@ export const DarkColors = {
 
   // Pencil marks
   pencilMark: '#6870A0',
+  pencilMarkHighlight: '#9FB6FF',
 } as const;
 
 export type ThemeColors = Record<keyof typeof LightColors, string>;
