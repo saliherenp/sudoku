@@ -29,6 +29,10 @@ type CellProps = {
   isSelected: boolean;
   isHighlighted: boolean;
   isSameNum: boolean;
+  // The digit among this cell's notes that matches the selected value (0 = none).
+  // Passed per cell rather than board-wide so selecting a digit only re-renders
+  // the cells that actually note it.
+  noteHighlight: number;
   showErrors: boolean;
   colors: ThemeColors;
   onSelect: (idx: number) => void;
@@ -41,7 +45,7 @@ type CellHandle = { pulse: () => void };
 // imperative `pulse()` so the board can replay the animation on any press
 // (including re-taps) without changing props / re-rendering.
 const Cell = React.memo(forwardRef<CellHandle, CellProps>(function Cell({
-  cell, idx, cellSize, isSelected, isHighlighted, isSameNum, showErrors, colors, onSelect,
+  cell, idx, cellSize, isSelected, isHighlighted, isSameNum, noteHighlight, showErrors, colors, onSelect,
 }, ref) {
   const r = row(idx), c = col(idx);
   const isErr = showErrors && cell.isError;
@@ -111,7 +115,13 @@ const Cell = React.memo(forwardRef<CellHandle, CellProps>(function Cell({
           {cell.value}
         </Animated.Text>
       ) : cell.notes.size > 0 ? (
-        <PencilMarks notes={cell.notes} cellSize={cellSize} color={colors.pencilMark} />
+        <PencilMarks
+          notes={cell.notes}
+          cellSize={cellSize}
+          color={colors.pencilMark}
+          highlight={noteHighlight}
+          highlightColor={colors.pencilMarkHighlight}
+        />
       ) : null}
       <Animated.View
         pointerEvents="none"
@@ -183,6 +193,10 @@ function SudokuBoard({ cells, selected, onSelect, showErrors, highlightRelated, 
     return s;
   }, [selectedValue, selected, cells, highlightSameNumber]);
 
+  // Same setting as the same-number cell highlight: selecting a filled cell also
+  // makes that digit stand out wherever it only exists as a pencil mark.
+  const noteDigit = highlightSameNumber ? selectedValue : 0;
+
   if (cells.length === 0) return null;
 
   return (
@@ -193,16 +207,18 @@ function SudokuBoard({ cells, selected, onSelect, showErrors, highlightRelated, 
           <View key={r} style={{ flexDirection: 'row', height: cellSize }}>
             {Array.from({ length: 9 }, (_, c) => {
               const idx = r * 9 + c;
+              const cell = cells[idx];
               return (
                 <Cell
                   key={c}
                   ref={setters[idx]}
-                  cell={cells[idx]}
+                  cell={cell}
                   idx={idx}
                   cellSize={cellSize}
                   isSelected={selected === idx}
                   isHighlighted={highlights.has(idx)}
                   isSameNum={sameNumber.has(idx)}
+                  noteHighlight={noteDigit && cell.notes.has(noteDigit) ? noteDigit : 0}
                   showErrors={showErrors}
                   colors={colors}
                   onSelect={handleSelect}
@@ -221,17 +237,32 @@ export default React.memo(SudokuBoard);
 // Fixed 3x3 layout: each digit always sits in the same slot (1 top-left …
 // 9 bottom-right), like a phone keypad. Flex rows fill the exact cell content
 // box, so no digit ever wraps to the wrong slot.
-function PencilMarks({ notes, cellSize, color }: { notes: Set<number>; cellSize: number; color: string }) {
+function PencilMarks({ notes, cellSize, color, highlight, highlightColor }: {
+  notes: Set<number>;
+  cellSize: number;
+  color: string;
+  highlight: number;
+  highlightColor: string;
+}) {
   return (
     <View style={styles.notesGrid}>
       {[0, 1, 2].map(r => (
         <View key={r} style={styles.notesRow}>
           {[1, 2, 3].map(c => {
             const n = r * 3 + c;
+            // The note matching the selected digit is drawn bigger, bolder and
+            // in the highlight colour so it stands out among its neighbours.
+            const isHL = n === highlight;
             return (
               <View key={n} style={styles.noteSlot}>
                 {notes.has(n) && (
-                  <Text style={{ fontSize: cellSize * 0.20, color, fontWeight: '600' }}>{n}</Text>
+                  <Text style={{
+                    fontSize: cellSize * (isHL ? 0.26 : 0.20),
+                    color: isHL ? highlightColor : color,
+                    fontWeight: isHL ? '800' : '600',
+                  }}>
+                    {n}
+                  </Text>
                 )}
               </View>
             );

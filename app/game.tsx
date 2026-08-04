@@ -11,6 +11,8 @@ import { useSettings } from '../src/store/useSettings';
 import SudokuBoard from '../src/components/SudokuBoard';
 import NumberPad from '../src/components/NumberPad';
 import ControlBar from '../src/components/ControlBar';
+import DifficultySheet from '../src/components/DifficultySheet';
+import { Difficulty } from '../src/engine/types';
 import { SHARE_BASE_URL } from '../src/config';
 
 const DIFF_LABELS: Record<string, string> = {
@@ -43,6 +45,9 @@ export default function GameScreen() {
   // Auto-complete prompt: shown once when few cells remain (until dismissed).
   const [autoCompleteDismissed, setAutoCompleteDismissed] = useState(false);
 
+  // Difficulty picker, opened by "Yeni Oyun" on the result overlay.
+  const [showDifficulty, setShowDifficulty] = useState(false);
+
   const { puzzle, cells, selected, noteMode, errorCount, elapsedSeconds, status, history, future } = state;
 
   // Record game result once per game; reset when a fresh game starts playing.
@@ -67,7 +72,11 @@ export default function GameScreen() {
   // Sound effect: play a short pop on each move (a new history entry) if enabled.
   // Throttled so very fast input doesn't thrash the audio engine (which would
   // otherwise fight the JS thread and make rapid entry feel like it lags).
-  const player = useAudioPlayer(require('../assets/sounds/tap.wav'));
+  // keepAudioSessionActive: on iOS the session is otherwise deactivated the
+  // moment the effect finishes, which cuts off music playing in another app.
+  const player = useAudioPlayer(require('../assets/sounds/tap.wav'), {
+    keepAudioSessionActive: true,
+  });
   const prevMovesRef = useRef(history.length);
   const lastSoundRef = useRef(0);
   useEffect(() => {
@@ -131,9 +140,14 @@ export default function GameScreen() {
     startSharedGame(puzzle); // same puzzle, progress reset
   };
 
-  const handleNewGame = () => {
+  // "Yeni Oyun" asks for the difficulty again instead of silently repeating the
+  // one just played — the same sheet the home screen uses.
+  const handleNewGame = () => setShowDifficulty(true);
+
+  const handleSelectDifficulty = (d: Difficulty) => {
+    setShowDifficulty(false);
     recordedRef.current = false;
-    startGame(puzzle.difficulty); // fresh puzzle, same difficulty
+    startGame(d);
   };
 
   const handleErase = () => {
@@ -245,7 +259,6 @@ export default function GameScreen() {
           <NumberPad
             onPress={inputDigit}
             cells={cells}
-            noteMode={noteMode}
             showRemaining={settings.remainingCount}
           />
         </View>
@@ -323,6 +336,12 @@ export default function GameScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      <DifficultySheet
+        visible={showDifficulty}
+        onSelect={handleSelectDifficulty}
+        onClose={() => setShowDifficulty(false)}
+      />
     </SafeAreaView>
   );
 }
